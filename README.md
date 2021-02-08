@@ -1,6 +1,5 @@
-# ![alt text](figures/favicon-32x32.png) COVID-19
+# ![alt text](favicon-32x32.png) COVID-19 Dashboard
 
-**COVID-19 Dashboard** 
 
 [![View on Github](github.svg)](https://github.com/amannj/COVID-19)
 
