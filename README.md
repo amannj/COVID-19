@@ -1,4 +1,4 @@
-# ![alt text](favicon-32x32.png) [COVID-19 Dashboard](https://amannj.shinyapps.io/COVID-19_Dashboard/)
+# ![alt text](favicon-32x32.png) COVID-19 Dashboard
 
 
 [![View on Github](github.svg)](https://github.com/amannj/COVID-19)
