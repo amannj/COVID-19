@@ -47,13 +47,13 @@ Global {data-icon="fa-globe"}
 
 ```{r download_CSSE}
 # Download and store in separate folder every day  --------------
-name_files <- c(
-  "time_series_covid19_confirmed_global.csv",
-  "time_series_covid19_deaths_global.csv",
-  "time_series_covid19_recovered_global.csv"
-)
-
-bin <- lapply(name_files, store_local)
+# name_files <- c(
+#   "time_series_covid19_confirmed_global.csv",
+#   "time_series_covid19_deaths_global.csv",
+#   "time_series_covid19_recovered_global.csv"
+# )
+#
+# bin <- lapply(name_files, store_local)
 ```
 
 ```{r transform_CSSE}
@@ -335,7 +335,140 @@ df_fin %>%
 Austria  
 ===================================== 
 
-APIs broke. Please come back later.
+```{r download_AGES}
+# Download AGES data  --------------
+download.file("https://covid19-dashboard.ages.at/data/data.zip", file.path("./data/AGES/data.zip"))
+unzip(list.files(path = "./data/AGES/", pattern = "*.zip", full.names = TRUE),
+  exdir = "./data/AGES"
+)
+```
+
+
+
+
+Column {data-width=600, .tabset}
+-------------------------------------
+
+```{r transform.state}
+# Load raw data into R   --------------
+readr::read_delim("data/AGES/data/CovidFaelle_Timeline.csv",
+  ";",
+  escape_double = FALSE, trim_ws = TRUE
+) %>%
+  select(
+    state = Bundesland, date = Time, pop = AnzEinwohner,
+    cases = AnzahlFaelle, casesCum = AnzahlFaelleSum, cases7 = AnzahlFaelle7Tage,
+    incidence = SiebenTageInzidenzFaelle,
+    dead = AnzahlTotTaeglich, deadCum = AnzahlTotSum,
+    recovered = AnzahlGeheiltTaeglich, recoveredCum = AnzahlGeheiltSum
+  ) %>%
+  mutate(date = as.Date(substr(date, 1, 10), format = "%d.%m.%Y")) %>%
+  select(state, date, pop, cases = casesCum, dead = deadCum, recovered = recoveredCum) %>%
+  mutate(remaining = cases - dead - recovered) %>%
+  filter(state != "Österreich") -> df_states
+```
+
+
+### Instances by state (per thousand inhabitants)
+
+
+```{r instances.state}
+## Colour pattern
+cp_custom <- c("#21908CFF", "#FDE725FF", "#440154FF")
+
+df_states %>%
+  mutate_at(.vars = c("cases", "dead", "recovered", "remaining"), ~ round(. / pop * 1000, 2)) %>%
+  pivot_longer(cols = "dead":"remaining") %>%
+  filter(value > 0) -> df_plot
+
+df_plot$name <- factor(df_plot$name, levels = c("recovered", "dead", "remaining"))
+
+ggplot(
+  df_plot,
+  aes(x = date, y = value, col = name)
+) +
+  geom_line() +
+  facet_wrap(~state, ncol = 3) +
+  theme_minimal() +
+  labs(
+    title = "COVID-19 incidents by state",
+    subtitle = "",
+    x = "", y = "",
+    caption = paste0("Date recorded: ", date_today, ".")
+  ) +
+  theme(
+    legend.position = "none"
+  ) +
+  scale_color_manual(values = cp_custom) +
+  scale_x_date(date_labels = "%e-%m") -> p3
+
+ggplotly(p3, tooltip = c("name", "col", "y")) %>%
+  layout(hovermode = "x")
+```
+
+
+
+
+
+
+Column {data-width=400, .tabset}
+-------------------------------------
+
+```{r transform_district}
+# Load raw data into R   --------------
+readr::read_delim("data/AGES/data/CovidFaelle_Timeline_GKZ.csv",
+  ";",
+  escape_double = FALSE, trim_ws = TRUE
+) %>%
+  select(
+    district = Bezirk, date = Time, pop = AnzEinwohner,
+    cases = AnzahlFaelle, casesCum = AnzahlFaelleSum, cases7 = AnzahlFaelle7Tage,
+    incidence = SiebenTageInzidenzFaelle,
+    dead = AnzahlTotTaeglich, deadCum = AnzahlTotSum,
+    recovered = AnzahlGeheiltTaeglich, recoveredCum = AnzahlGeheiltSum
+  ) %>%
+  mutate(date = as.Date(substr(date, 1, 10), format = "%d.%m.%Y")) %>%
+  select(district, date, pop, cases = casesCum, dead = deadCum, recovered = recoveredCum) %>%
+  mutate(remaining = cases - dead - recovered) -> df_district
+```
+
+
+### District Table
+
+```{r district.table}
+# District table   --------------
+
+## Custom table container
+sketch <- htmltools::withTags(table(
+  class = "display",
+  thead(
+    tr(
+      th(rowspan = 2, "District"),
+      th(rowspan = 2, "Date"),
+      th(colspan = 4, "Cases")
+    ),
+    tr(
+      lapply(c("confirmed", "dead", "recovered", "remaining"), th)
+    )
+  )
+))
+
+## Table
+df_district %>%
+  select(-pop) %>%
+  filter(date >= (ymd(date_today) - 10)) %>%
+  group_by(district) %>%
+  arrange(district, desc(date)) %>%
+  datatable(
+    container = sketch,
+    rownames = FALSE,
+    caption = "Table 1: Infections over last five recorded days.",
+    options = list(
+      pageLength = 10
+    )
+  )
+```   
+
 
 
 About {data-icon="fa-info-circle"}
