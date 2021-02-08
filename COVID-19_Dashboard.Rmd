@@ -1,0 +1,373 @@
+---
+title: "COVID-19 Dashboard"
+output: 
+  flexdashboard::flex_dashboard:
+    theme: flatly
+    social: menu    
+    logo : "favicon-32x32.png"
+    source_code: https://github.com/amannj/COVID-19
+runtime: shiny    
+---
+
+```{r setup, include=FALSE}
+## Time stamp  --------------
+date_today <- substr(Sys.time(), 1, 10)
+
+## Create folders  --------------
+dir.create(paste0("figures/", date_today))
+dir.create(paste0("data/", date_today))
+
+## Options and packages  --------------
+knitr::opts_chunk$set(
+  fig.path = paste0("figures/", date_today, "/"),
+  echo = FALSE,
+  message = FALSE,
+  warning = FALSE
+)
+library(lubridate)
+library(tidyverse)
+library(kableExtra)
+library(rlang)
+library(DT)
+library(scales)
+library(ggrepel)
+library(WDI)
+library(plotly)
+library(ggplotlyExtra)
+
+## Colour pattern
+cp_custom <- c("#21908CFF", "#FDE725FF", "#440154FF")
+
+## Function files
+source("functions.R")
+```
+
+Global {data-icon="fa-globe"}
+===================================== 
+
+```{r download_CSSE}
+# Download and store in separate folder every day  --------------
+name_files <- c(
+  "time_series_covid19_confirmed_global.csv",
+  "time_series_covid19_deaths_global.csv",
+  "time_series_covid19_recovered_global.csv"
+)
+
+bin <- lapply(name_files, store_local)
+```
+
+```{r transform_CSSE}
+# Load raw data into R   --------------
+df_confirmed <- read.csv(paste0("data/CSSE/time_series_covid19_confirmed_global.csv"), stringsAsFactors = FALSE)
+df_dead <- read.csv(paste0("data/CSSE/time_series_covid19_deaths_global.csv"), stringsAsFactors = FALSE)
+df_recovered <- read.csv(paste0("data/CSSE/time_series_covid19_recovered_global.csv"), stringsAsFactors = FALSE)
+
+
+# Create final data frames   --------------
+
+## Merge data sets
+df_confirmed %>%
+  tidy_data("confirmed") %>%
+  full_join(df_dead %>%
+    tidy_data("dead"),
+  by = c("country", "date")
+  ) %>%
+  full_join(df_recovered %>%
+    tidy_data("recovered"),
+  by = c("country", "date")
+  ) %>%
+  mutate(remaining = confirmed - dead - recovered) %>%
+  ungroup() %>%
+  mutate(iso2c = countrycode::countrycode(country, origin = "country.name", destination = "iso2c")) -> df_fin
+
+## Get most recent WDI population data
+WDI(
+  country = df_fin %>% distinct(iso2c) %>% pull(),
+  indicator = "SP.POP.TOTL", start = 2015
+) %>%
+  group_by(iso2c) %>%
+  na.omit() %>%
+  filter(year == max(year)) %>%
+  select(iso2c, pop = "SP.POP.TOTL") -> df_pop
+
+## Merge data
+df_fin %>%
+  left_join(df_pop, by = "iso2c") -> df_fin
+```
+
+Inputs {.sidebar data-width=300}
+-----------------------------------------------------------------------
+<br>
+**Instructions. ** Using the control elements provided below to
+
+- add/remove entries from the list of 'selected countries',
+- define time span, and
+- trigger data transformations
+  - using linear/logarithmic scale;
+  - total /per thousand inhabitants;
+
+for interactive figures in central panel. 
+
+***
+
+```{r}
+## Country selection -------------
+selectInput("select_countries", h4("Select countries"),
+  choices = df_fin %>% distinct(country) %>% pull(),
+  multiple = TRUE,
+  selected = c("Austria", "Germany", "Italy", "Spain", "United Kingdom", "France", "China", "Japan", "Sweden", "Switzerland")
+)
+```
+
+***
+
+```{r}
+## Select data range --------
+dateRangeInput(
+  "select_date",
+  h4("Select range"),
+  start = df_fin %>% ungroup() %>% summarise(date = min(date)) %>% pull(),
+  end = df_fin %>% ungroup() %>% summarise(date = max(date)) %>% pull(),
+  format = "dd-mm-yyyy"
+)
+```
+
+***
+
+```{r}
+## Series transformation ---------
+radioButtons("transform_series",
+  h4("Transform series"),
+  inline = FALSE,
+  c(
+    "Linear" = "linear",
+    "Logarithm" = "log"
+  )
+)
+
+## Series scaling ---------
+radioButtons("scale_series", "",
+  inline = FALSE,
+  c(
+    "Per thousand inhabitants" = "pc",
+    "Total cases" = "cases"
+  )
+)
+```
+    
+Column {data-width=600, .tabset} 
+-------------------------------------
+    
+### Cumulative cases over time
+
+```{r}
+output$cumulative <- renderPlotly({
+  plot_TS(df_fin,
+    country_select = reactive(input$select_countries),
+    start_date = reactive(input$select_date[1]),
+    end_date = reactive(input$select_date[2]),
+    transform_series = reactive(input$transform_series),
+    scale_series = reactive(input$scale_series),
+    date_today = date_today,
+    is.ts = FALSE
+  ) -> p3
+
+
+  # Manually set tooltip info
+  plotly_build(p3)
+})
+
+plotlyOutput("cumulative", width = "100%")
+```
+
+### Progression by country
+
+```{r}
+output$ts <- renderPlotly({
+  plot_TS(df_fin,
+    country_select = reactive(input$select_countries),
+    start_date = reactive(input$select_date[1]),
+    end_date = reactive(input$select_date[2]),
+    transform_series = reactive(input$transform_series),
+    scale_series = reactive(input$scale_series),
+    date_today = date_today,
+    is.ts = TRUE
+  ) -> p4
+
+
+  # Manually set tooltip info
+  plotly_build(p4)
+})
+
+plotlyOutput("ts", width = "100%")
+```
+   
+Column {data-width=400, .tabset}
+-------------------------------------
+
+### Ten Most Affected (full sample)
+    
+```{r most.affected.all}
+# Set topX to top-10  --------------
+x <- 10
+
+# Aggregate data full sample --------------
+
+## Extract full sample topX countries
+df_fin %>%
+  group_by(country) %>%
+  summarize_at(c("confirmed", "dead", "recovered", "remaining"), max) -> df_topX_all
+
+# Extract list of topX countries for each category for full sample
+rbind(
+  extract_topX(df_topX_all, X = x, "confirmed") %>% select(country, series),
+  extract_topX(df_topX_all, X = x, "dead") %>% select(country, series),
+  extract_topX(df_topX_all, X = x, "recovered") %>% select(country, series),
+  extract_topX(df_topX_all %>% filter(country != "US"), X = x, "remaining") %>% select(country, series)
+) %>% as_tibble() -> topX_countries_all
+
+## Plot full sample top countries
+rbind(
+  extract_topX(df_topX_all, X = x, "confirmed"),
+  extract_topX(df_topX_all, X = x, "dead"),
+  extract_topX(df_topX_all, X = x, "recovered"),
+  extract_topX(df_topX_all %>% filter(country != "US"), X = x, "remaining")
+) %>%
+  ggplot(aes(x = country, y = `share (%)`, fill = country, cases = `cases (100k)`)) +
+  geom_bar(stat = "identity", alpha = .85) +
+  facet_wrap(~series, ncol = 2, scales = "free") +
+  theme_minimal() +
+  labs(
+    title = "Share of COVID-19 incidents: most affected (full sample)",
+    subtitle = "",
+    x = "", y = "",
+    caption = paste0("Date recorded: ", date_today, ".")
+  ) +
+  theme(
+    legend.position = "none",
+    axis.text.x = element_text(angle = 45, hjust = 1)
+  ) +
+  scale_fill_viridis_d() -> p1
+
+ggplotly(p1, tooltip = c("x", "y", "cases"))
+```
+
+### Most Affected (last 5 days)
+
+```{r most.affected.5days}
+# Aggregate data last five days --------------
+## Extract full sample top countries
+df_fin %>%
+  filter(date >= (ymd(date_today) - 5)) %>%
+  group_by(country) %>%
+  summarize_at(c("confirmed", "dead", "recovered", "remaining"), max) -> df_topX_past5
+
+# Extract list of topX countries for each category for full sample
+rbind(
+  extract_topX(df_topX_past5, X = x, "confirmed") %>% select(country, series),
+  extract_topX(df_topX_past5, X = x, "dead") %>% select(country, series),
+  extract_topX(df_topX_past5, X = x, "recovered") %>% select(country, series),
+  extract_topX(df_topX_past5 %>% filter(country != "US"), X = x, "remaining") %>% select(country, series)
+) %>% as_tibble() -> topX_countries_past5
+
+## Plot last-5-days sample top countries
+rbind(
+  extract_topX(df_topX_past5, X = x, "confirmed"),
+  extract_topX(df_topX_past5, X = x, "dead"),
+  extract_topX(df_topX_past5, X = x, "recovered"),
+  extract_topX(df_topX_past5 %>% filter(country != "US"), X = x, "remaining")
+) %>%
+  ggplot(aes(x = country, y = `share (%)`, fill = country, cases = `cases (100k)`)) +
+  geom_bar(stat = "identity", alpha = .85) +
+  facet_wrap(~series, nrow = 2, scales = "free") +
+  theme_minimal() +
+  labs(
+    title = "Share of COVID-19 incidents: most affected (last five days)",
+    subtitle = "",
+    x = "", y = "",
+    caption = paste0("Date recorded: ", date_today, ".")
+  ) +
+  theme(
+    legend.position = "none",
+    axis.text.x = element_text(angle = 45, hjust = 1)
+  ) +
+  scale_fill_viridis_d() -> p2
+
+ggplotly(p2, tooltip = c("x", "y", "cases"))
+```
+
+### Country Table
+
+```{r country.table}
+# Country tables   --------------
+
+## Custom table container
+sketch <- htmltools::withTags(table(
+  class = "display",
+  thead(
+    tr(
+      th(rowspan = 2, "Country"),
+      th(rowspan = 2, "Date"),
+      th(colspan = 4, "Cases")
+    ),
+    tr(
+      lapply(c("confirmed", "dead", "recovered", "remaining"), th)
+    )
+  )
+))
+
+## Table
+df_fin %>%
+  select(-c(pop, iso2c)) %>%
+  filter(date >= (ymd(date_today) - 10)) %>%
+  group_by(country) %>%
+  arrange(country, desc(date)) %>%
+  datatable(
+    container = sketch,
+    rownames = FALSE,
+    caption = "Table 1: Infections over last five recorded days.",
+    options = list(
+      pageLength = 10
+    )
+  )
+```   
+
+Austria  
+===================================== 
+
+APIs broke. Please come back later.
+
+
+About {data-icon="fa-info-circle"}
+=====================================
+
+**COVID-19 Dashboard** 
+
+[![View on Github](github.svg)](https://github.com/amannj/COVID-19)
+
+- Kindly report any issues you may encounter to the [designated GitHub page](https://github.com/amannj/COVID-19/issues). Thank you.
+- Created by [(c) 2021 by Juergen Amann](https://amannj.github.io).
+
+--------------
+
+**Data:**
+
+- Data for cross-country analysis taken from the [COVID-19 (2019-nCoV) Data Repository by Johns Hopkins CSSE](https://github.com/CSSEGISandData/COVID-19). 
+- Austrian data taken from [BMSGPK](https://www.sozialministerium.at/Informationen-zum-Coronavirus/Neuartiges-Coronavirus-(2019-nCov).html), [Gesundheitsministerium.at](https://info.gesundheitsministerium.at/) and
+[derStandard](https://www.derstandard.at/story/2000115810293/aktuelle-zahlen-zum-coronavirus?ref=cta_red_s1). Population by district from [Statistik Austria](https://www.statistik.at/web_de/klassifikationen/regionale_gliederungen/politische_bezirke/index.html).
+- Population data extracted from the [World Development Indicators (WDI) data base](https://databank.worldbank.org/reports.aspx?source=World-Development-Indicators) using package [WDI](https://github.com/vincentarelbundock/WDI).
+
+**Shapefile Austria:**
+
+- Shapefile for Austria taken from [EEA](https://www.eea.europa.eu/data-and-maps/data/eea-reference-grids-2/gis-files/austria-shapefile).
+- Shapefile was modified using [QGIS](https://www.qgis.org/en/site/) to incorporate the most recent district re-classification in which district 'Wien Umgebung' was resolved; [click here for more information](https://en.wikipedia.org/wiki/Wien-Umgebung_District).
+
+**Favicon:**
+
+- Favicon taken from https://icons8.com/.
+
+**Acknowledgements:** 
+
+- Inspiration: Yanchang Zhao, COVID-19 Data Analysis with Tidyverse and Ggplot2 – Worldwide. RDataMining.com, 2020. URL: [http://www.rdatamining.com/docs/Coronavirus-data-analysis-world.pdf](http://www.rdatamining.com/docs/Coronavirus-data-analysis-world.pdf).
+
+- Data preparation using the [Tidyverse](https://www.tidyverse.org/). Visualisation with [flexdashboard](https://rmarkdown.rstudio.com/flexdashboard/index.html).
