@@ -49,7 +49,7 @@ extract_topX <- function(df, name = "value", X = 10) {
 }
 
 
-# Plot cummulative   --------------
+# Plot cumulative   --------------
 plot_TS <- function(df, country_select = NULL,
                     start_date = NULL,
                     end_date = NULL,
@@ -131,7 +131,7 @@ plot_TS <- function(df, country_select = NULL,
       aes(x = date, y = value, col = country)
     ) +
       geom_line() +
-      facet_wrap(~name, scales = "free_y", ncol = 1) +
+      facet_wrap(~name, scales = "free_y", ncol = 2) +
       labs(
         title = title,
         x = "", y = "", fill = "",
@@ -144,7 +144,7 @@ plot_TS <- function(df, country_select = NULL,
         (max(plot_data$date, na.rm = TRUE) + 0)
       ))) +
       theme(
-        legend.position = "none",
+        legend.position = "right",
         axis.text.x = element_text(angle = 45, hjust = 1)
       ) +
       scale_x_date(date_labels = "%e-%m") +
