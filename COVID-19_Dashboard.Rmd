@@ -6,6 +6,8 @@ output:
     social: menu    
     logo : "favicon-32x32.png"
     source_code: https://github.com/amannj/COVID-19
+    includes:
+       in_header: google-analytics.html    
 runtime: shiny    
 ---
 
@@ -40,6 +42,7 @@ cp_custom <- c("#21908CFF", "#FDE725FF", "#440154FF")
 
 ## Function files
 source("functions.R")
+
 ```
 
 Global {data-icon="fa-globe"}
@@ -47,13 +50,13 @@ Global {data-icon="fa-globe"}
 
 ```{r download_CSSE}
 # Download and store in separate folder every day  --------------
-# name_files <- c(
-#   "time_series_covid19_confirmed_global.csv",
-#   "time_series_covid19_deaths_global.csv",
-#   "time_series_covid19_recovered_global.csv"
-# )
-#
-# bin <- lapply(name_files, store_local)
+name_files <- c(
+  "time_series_covid19_confirmed_global.csv",
+  "time_series_covid19_deaths_global.csv",
+  "time_series_covid19_recovered_global.csv"
+)
+
+bin <- lapply(name_files, store_local)
 ```
 
 ```{r transform_CSSE}
@@ -98,15 +101,17 @@ df_fin %>%
 Inputs {.sidebar data-width=300}
 -----------------------------------------------------------------------
 <br>
-**Instructions. ** Using the control elements provided below to
 
-- add/remove entries from the list of 'selected countries',
-- define time span, and
-- trigger data transformations
-  - using linear/logarithmic scale;
-  - total /per thousand inhabitants;
+**Instructions for interactive figures in central pane:** 
 
-for interactive figures in central panel. 
+- Use the control elements provided below to
+  - add/remove entries from the list of 'selected countries',
+  - define time span, and
+  - trigger data transformations
+    - using linear/logarithmic scale;
+    - total /per thousand inhabitants;
+
+- Double-click on country name to remove all other countries from central figure.
 
 ***
 
@@ -115,7 +120,7 @@ for interactive figures in central panel.
 selectInput("select_countries", h4("Select countries"),
   choices = df_fin %>% distinct(country) %>% pull(),
   multiple = TRUE,
-  selected = c("Austria", "Germany", "Italy", "Spain", "United Kingdom", "France", "China", "Japan", "Sweden", "Switzerland")
+  selected = c("Austria", "Germany", "Italy", "Spain", "United Kingdom", "France", "Japan", "Sweden", "Switzerland")
 )
 ```
 
@@ -157,33 +162,12 @@ radioButtons("scale_series", "",
     
 Column {data-width=600, .tabset} 
 -------------------------------------
-    
-### Cumulative cases over time
-
-```{r}
-output$cumulative <- renderPlotly({
-  plot_TS(df_fin,
-    country_select = reactive(input$select_countries),
-    start_date = reactive(input$select_date[1]),
-    end_date = reactive(input$select_date[2]),
-    transform_series = reactive(input$transform_series),
-    scale_series = reactive(input$scale_series),
-    date_today = date_today,
-    is.ts = FALSE
-  ) -> p3
 
 
-  # Manually set tooltip info
-  plotly_build(p3)
-})
+### Total instances by country
 
-plotlyOutput("cumulative", width = "100%")
-```
-
-### Progression by country
-
-```{r}
-output$ts <- renderPlotly({
+```{r pgc1}
+output$pgc1 <- renderPlotly({
   plot_TS(df_fin,
     country_select = reactive(input$select_countries),
     start_date = reactive(input$select_date[1]),
@@ -192,20 +176,58 @@ output$ts <- renderPlotly({
     scale_series = reactive(input$scale_series),
     date_today = date_today,
     is.ts = TRUE
-  ) -> p4
+  ) -> pgc1
 
 
   # Manually set tooltip info
-  plotly_build(p4)
+  plotly_build(pgc1)
 })
 
-plotlyOutput("ts", width = "100%")
+plotlyOutput("pgc1", width = "100%")
 ```
+
+
+### New daily instances (rolling average last 7 days)
+
+```{r pgc2}
+output$pgc2 <- renderPlotly({
+  plot_TS(df_fin %>%
+    arrange(country, date) %>%
+    group_by(country) %>%
+    mutate_at(
+      .vars = c(
+        "confirmed", "dead",
+        "recovered", "remaining"
+      ),
+      ~ zoo::rollapply((lead(., 1) - .),
+        7, mean,
+        align = "right",
+        fill = NA
+      )
+    ) %>%
+    ungroup(),
+  country_select = reactive(input$select_countries),
+  start_date = reactive(input$select_date[1]),
+  end_date = reactive(input$select_date[2]),
+  transform_series = reactive(input$transform_series),
+  scale_series = reactive(input$scale_series),
+  date_today = date_today,
+  is.ts = TRUE
+  ) -> pgc2
+
+
+  # Manually set tooltip info
+  plotly_build(pgc2)
+})
+
+plotlyOutput("pgc2", width = "100%")
+```
+
    
 Column {data-width=400, .tabset}
 -------------------------------------
 
-### Ten Most Affected (full sample)
+### Ten most affected countries (full sample)
     
 ```{r most.affected.all}
 # Set topX to top-10  --------------
@@ -218,80 +240,69 @@ df_fin %>%
   group_by(country) %>%
   summarize_at(c("confirmed", "dead", "recovered", "remaining"), max) -> df_topX_all
 
-# Extract list of topX countries for each category for full sample
-rbind(
-  extract_topX(df_topX_all, X = x, "confirmed") %>% select(country, series),
-  extract_topX(df_topX_all, X = x, "dead") %>% select(country, series),
-  extract_topX(df_topX_all, X = x, "recovered") %>% select(country, series),
-  extract_topX(df_topX_all %>% filter(country != "US"), X = x, "remaining") %>% select(country, series)
-) %>% as_tibble() -> topX_countries_all
 
 ## Plot full sample top countries
 rbind(
   extract_topX(df_topX_all, X = x, "confirmed"),
   extract_topX(df_topX_all, X = x, "dead"),
   extract_topX(df_topX_all, X = x, "recovered"),
-  extract_topX(df_topX_all %>% filter(country != "US"), X = x, "remaining")
+  extract_topX(df_topX_all, X = x, "remaining")
 ) %>%
-  ggplot(aes(x = country, y = `share (%)`, fill = country, cases = `cases (100k)`)) +
+  ggplot(aes(
+    x = country,
+    y = `share (%)`, fill = country, cases = `cases (100k)`
+  )) +
   geom_bar(stat = "identity", alpha = .85) +
   facet_wrap(~series, ncol = 2, scales = "free") +
   theme_minimal() +
   labs(
-    title = "Share of COVID-19 incidents: most affected (full sample)",
+    title = "Share of incidents of ten most affected countries",
     subtitle = "",
     x = "", y = "",
     caption = paste0("Date recorded: ", date_today, ".")
   ) +
   theme(
-    legend.position = "none",
-    axis.text.x = element_text(angle = 45, hjust = 1)
+    legend.position = "none"
   ) +
-  scale_fill_viridis_d() -> p1
+  scale_fill_viridis_d() +
+  coord_flip() -> p1
 
 ggplotly(p1, tooltip = c("x", "y", "cases"))
 ```
 
-### Most Affected (last 5 days)
+### Ten most affected countries (last 7 days)
 
-```{r most.affected.5days}
-# Aggregate data last five days --------------
+```{r most.affected.7days}
+# Aggregate data last seven days --------------
 ## Extract full sample top countries
 df_fin %>%
-  filter(date >= (ymd(date_today) - 5)) %>%
+  filter(date >= (ymd(date_today) - 7)) %>%
   group_by(country) %>%
-  summarize_at(c("confirmed", "dead", "recovered", "remaining"), max) -> df_topX_past5
+  summarize_at(c("confirmed", "dead", "recovered", "remaining"), ~ max(. - min(.))) -> df_topX_past7
 
-# Extract list of topX countries for each category for full sample
-rbind(
-  extract_topX(df_topX_past5, X = x, "confirmed") %>% select(country, series),
-  extract_topX(df_topX_past5, X = x, "dead") %>% select(country, series),
-  extract_topX(df_topX_past5, X = x, "recovered") %>% select(country, series),
-  extract_topX(df_topX_past5 %>% filter(country != "US"), X = x, "remaining") %>% select(country, series)
-) %>% as_tibble() -> topX_countries_past5
 
 ## Plot last-5-days sample top countries
 rbind(
-  extract_topX(df_topX_past5, X = x, "confirmed"),
-  extract_topX(df_topX_past5, X = x, "dead"),
-  extract_topX(df_topX_past5, X = x, "recovered"),
-  extract_topX(df_topX_past5 %>% filter(country != "US"), X = x, "remaining")
+  extract_topX(df_topX_past7, X = x, "confirmed"),
+  extract_topX(df_topX_past7, X = x, "dead"),
+  extract_topX(df_topX_past7, X = x, "recovered"),
+  extract_topX(df_topX_past7 %>% filter(country != "US"), X = x, "remaining")
 ) %>%
   ggplot(aes(x = country, y = `share (%)`, fill = country, cases = `cases (100k)`)) +
   geom_bar(stat = "identity", alpha = .85) +
   facet_wrap(~series, nrow = 2, scales = "free") +
   theme_minimal() +
   labs(
-    title = "Share of COVID-19 incidents: most affected (last five days)",
+    title = "Share of incidents of ten most affected countries",
     subtitle = "",
     x = "", y = "",
     caption = paste0("Date recorded: ", date_today, ".")
   ) +
   theme(
-    legend.position = "none",
-    axis.text.x = element_text(angle = 45, hjust = 1)
+    legend.position = "none"
   ) +
-  scale_fill_viridis_d() -> p2
+  scale_fill_viridis_d() +
+  coord_flip() -> p2
 
 ggplotly(p2, tooltip = c("x", "y", "cases"))
 ```
@@ -351,7 +362,7 @@ Column {data-width=600, .tabset}
 
 ```{r transform.state}
 # Load raw data into R   --------------
-readr::read_delim("data/AGES/data/CovidFaelle_Timeline.csv",
+readr::read_delim("data/AGES/CovidFaelle_Timeline.csv",
   ";",
   escape_double = FALSE, trim_ws = TRUE
 ) %>%
@@ -416,7 +427,7 @@ Column {data-width=400, .tabset}
 
 ```{r transform_district}
 # Load raw data into R   --------------
-readr::read_delim("data/AGES/data/CovidFaelle_Timeline_GKZ.csv",
+readr::read_delim("data/AGES/CovidFaelle_Timeline_GKZ.csv",
   ";",
   escape_double = FALSE, trim_ws = TRUE
 ) %>%
