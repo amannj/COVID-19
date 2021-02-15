@@ -317,22 +317,36 @@ sketch <- htmltools::withTags(table(
   class = "display",
   thead(
     tr(
-      th(rowspan = 2, "Country"),
-      th(rowspan = 2, "Date"),
-      th(colspan = 4, "Cases")
+      th(rowspan = 3, "Country"),
+      th(rowspan = 3, "Date"),
+      th(colspan = 8, "Cases")
     ),
     tr(
-      lapply(c("confirmed", "dead", "recovered", "remaining"), th)
+      th(colspan = 2, "confirmed"),
+      th(colspan = 2, "dead"),
+      th(colspan = 2, "recovered"),
+      th(colspan = 2, "remaining")
+    ),
+    tr(
+      lapply(rep(c("total", "new"), 4), th)
     )
   )
 ))
 
 ## Table
 df_fin %>%
-  select(-c(pop, iso2c)) %>%
-  filter(date >= (ymd(date_today) - 10)) %>%
+  filter(date >= (ymd(date_today) - 11)) %>%
   group_by(country) %>%
   arrange(country, desc(date)) %>%
+  mutate(new_confirmed = confirmed - lead(confirmed, 1),
+         new_dead = dead - lead(dead, 1),
+         new_recovered = recovered - lead(recovered, 1),
+         new_remaining = remaining - lead(remaining, 1),) %>%
+  
+  select(country, date, confirmed, new_confirmed, dead, new_dead, recovered, new_recovered,remaining, new_remaining) %>%
+  filter(date >= (ymd(date_today) - 10)) %>%
+  
+
   datatable(
     container = sketch,
     rownames = FALSE,
@@ -368,14 +382,15 @@ readr::read_delim("data/AGES/CovidFaelle_Timeline.csv",
 ) %>%
   select(
     state = Bundesland, date = Time, pop = AnzEinwohner,
-    cases = AnzahlFaelle, casesCum = AnzahlFaelleSum, cases7 = AnzahlFaelle7Tage,
-    incidence = SiebenTageInzidenzFaelle,
+    confirmed = AnzahlFaelle, confirmedCum = AnzahlFaelleSum, 
+    #cases7 = AnzahlFaelle7Tage,
+    #incidence = SiebenTageInzidenzFaelle,
     dead = AnzahlTotTaeglich, deadCum = AnzahlTotSum,
     recovered = AnzahlGeheiltTaeglich, recoveredCum = AnzahlGeheiltSum
   ) %>%
   mutate(date = as.Date(substr(date, 1, 10), format = "%d.%m.%Y")) %>%
-  select(state, date, pop, cases = casesCum, dead = deadCum, recovered = recoveredCum) %>%
-  mutate(remaining = cases - dead - recovered) %>%
+  select(state, date, pop, confirmed = confirmedCum, dead = deadCum, recovered = recoveredCum) %>%
+  mutate(remaining = confirmed - dead - recovered) %>%
   filter(state != "Österreich") -> df_states
 ```
 
@@ -388,7 +403,7 @@ readr::read_delim("data/AGES/CovidFaelle_Timeline.csv",
 cp_custom <- c("#21908CFF", "#FDE725FF", "#440154FF")
 
 df_states %>%
-  mutate_at(.vars = c("cases", "dead", "recovered", "remaining"), ~ round(. / pop * 1000, 2)) %>%
+  mutate_at(.vars = c("confirmed", "dead", "recovered", "remaining"), ~ round(. / pop * 1000, 2)) %>%
   pivot_longer(cols = "dead":"remaining") %>%
   filter(value > 0) -> df_plot
 
@@ -433,14 +448,15 @@ readr::read_delim("data/AGES/CovidFaelle_Timeline_GKZ.csv",
 ) %>%
   select(
     district = Bezirk, date = Time, pop = AnzEinwohner,
-    cases = AnzahlFaelle, casesCum = AnzahlFaelleSum, cases7 = AnzahlFaelle7Tage,
-    incidence = SiebenTageInzidenzFaelle,
+    confirmed = AnzahlFaelle, confirmedCum = AnzahlFaelleSum, 
+    # cases7 = AnzahlFaelle7Tage,
+    # incidence = SiebenTageInzidenzFaelle,
     dead = AnzahlTotTaeglich, deadCum = AnzahlTotSum,
     recovered = AnzahlGeheiltTaeglich, recoveredCum = AnzahlGeheiltSum
   ) %>%
   mutate(date = as.Date(substr(date, 1, 10), format = "%d.%m.%Y")) %>%
-  select(district, date, pop, cases = casesCum, dead = deadCum, recovered = recoveredCum) %>%
-  mutate(remaining = cases - dead - recovered) -> df_district
+  select(district, date, pop, confirmed = confirmedCum, dead = deadCum, recovered = recoveredCum) %>%
+  mutate(remaining = confirmed - dead - recovered) -> df_district
 ```
 
 
@@ -448,34 +464,24 @@ readr::read_delim("data/AGES/CovidFaelle_Timeline_GKZ.csv",
 
 ```{r district.table}
 # District table   --------------
-
-## Custom table container
-sketch <- htmltools::withTags(table(
-  class = "display",
-  thead(
-    tr(
-      th(rowspan = 2, "District"),
-      th(rowspan = 2, "Date"),
-      th(colspan = 4, "Cases")
-    ),
-    tr(
-      lapply(c("confirmed", "dead", "recovered", "remaining"), th)
-    )
-  )
-))
-
-## Table
 df_district %>%
   select(-pop) %>%
-  filter(date >= (ymd(date_today) - 10)) %>%
+  filter(date >= (ymd(date_today) - 8)) %>%
   group_by(district) %>%
   arrange(district, desc(date)) %>%
+  mutate(new_confirmed = confirmed - lead(confirmed, 1),
+         new_dead = dead - lead(dead, 1),
+         new_recovered = recovered - lead(recovered, 1),
+         new_remaining = remaining - lead(remaining, 1),) %>%
+  
+  select(district, date, confirmed, new_confirmed, dead, new_dead, recovered, new_recovered,remaining, new_remaining) %>%
+  filter(date >= (ymd(date_today) - 7)) %>%
   datatable(
     container = sketch,
     rownames = FALSE,
     caption = "Table 1: Infections over last five recorded days.",
     options = list(
-      pageLength = 10
+      pageLength = 7
     )
   )
 ```   
