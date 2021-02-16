@@ -503,14 +503,15 @@ About {data-icon="fa-info-circle"}
 **Data:**
 
 - Data for cross-country analysis taken from the [COVID-19 (2019-nCoV) Data Repository by Johns Hopkins CSSE](https://github.com/CSSEGISandData/COVID-19). 
-- Austrian data taken from [BMSGPK](https://www.sozialministerium.at/Informationen-zum-Coronavirus/Neuartiges-Coronavirus-(2019-nCov).html), [Gesundheitsministerium.at](https://info.gesundheitsministerium.at/) and
-[derStandard](https://www.derstandard.at/story/2000115810293/aktuelle-zahlen-zum-coronavirus?ref=cta_red_s1). Population by district from [Statistik Austria](https://www.statistik.at/web_de/klassifikationen/regionale_gliederungen/politische_bezirke/index.html).
-- Population data extracted from the [World Development Indicators (WDI) data base](https://databank.worldbank.org/reports.aspx?source=World-Development-Indicators) using package [WDI](https://github.com/vincentarelbundock/WDI).
+- Global population data extracted from the [World Development Indicators (WDI) data base](https://databank.worldbank.org/reports.aspx?source=World-Development-Indicators) using package [WDI](https://github.com/vincentarelbundock/WDI).
+- Data for Austria taken from the [AGES Dashboard COVID-19.](https://covid19-dashboard.ages.at/).
+
+
 
 **Shapefile Austria:**
 
-- Shapefile for Austria taken from [EEA](https://www.eea.europa.eu/data-and-maps/data/eea-reference-grids-2/gis-files/austria-shapefile).
-- Shapefile was modified using [QGIS](https://www.qgis.org/en/site/) to incorporate the most recent district re-classification in which district 'Wien Umgebung' was resolved; [click here for more information](https://en.wikipedia.org/wiki/Wien-Umgebung_District).
+<!-- - Shapefile for Austria taken from [GADM](database (www.gadm.org). -->
+<!-- - Shapefile was modified using [QGIS](https://www.qgis.org/en/site/) to incorporate the most recent district re-classification in which district 'Wien Umgebung' was resolved; [click here for more information](https://en.wikipedia.org/wiki/Wien-Umgebung_District). -->
 
 **Favicon:**
 
