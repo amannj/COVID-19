@@ -160,7 +160,7 @@ radioButtons("scale_series", "",
 )
 ```
     
-Column {data-width=600, .tabset} 
+Column {data-width=500, .tabset} 
 -------------------------------------
 
 
@@ -224,7 +224,7 @@ plotlyOutput("pgc2", width = "100%")
 ```
 
    
-Column {data-width=400, .tabset}
+Column {data-width=500, .tabset}
 -------------------------------------
 
 ### Ten most affected countries (full sample)
@@ -371,7 +371,7 @@ unzip(list.files(path = "./data/AGES/", pattern = "*.zip", full.names = TRUE),
 
 
 
-Column {data-width=600, .tabset}
+Column {data-width=500, .tabset}
 -------------------------------------
 
 ```{r transform.state}
@@ -437,7 +437,7 @@ ggplotly(p3, tooltip = c("name", "col", "y")) %>%
 
 
 
-Column {data-width=400, .tabset}
+Column {data-width=500, .tabset}
 -------------------------------------
 
 ```{r transform_district}
@@ -466,7 +466,7 @@ readr::read_delim("data/AGES/CovidFaelle_Timeline_GKZ.csv",
 # District table   --------------
 df_district %>%
   select(-pop) %>%
-  filter(date >= (ymd(date_today) - 8)) %>%
+  filter(date >= (ymd(date_today) - 9)) %>%
   group_by(district) %>%
   arrange(district, desc(date)) %>%
   mutate(new_confirmed = confirmed - lead(confirmed, 1),
@@ -475,7 +475,7 @@ df_district %>%
          new_remaining = remaining - lead(remaining, 1),) %>%
   
   select(district, date, confirmed, new_confirmed, dead, new_dead, recovered, new_recovered,remaining, new_remaining) %>%
-  filter(date >= (ymd(date_today) - 7)) %>%
+  filter(date >= (ymd(date_today) - 8)) %>%
   datatable(
     container = sketch,
     rownames = FALSE,
