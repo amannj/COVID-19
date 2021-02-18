@@ -504,11 +504,11 @@ About {data-icon="fa-info-circle"}
 
 - Data for cross-country analysis taken from the [COVID-19 (2019-nCoV) Data Repository by Johns Hopkins CSSE](https://github.com/CSSEGISandData/COVID-19). 
 - Global population data extracted from the [World Development Indicators (WDI) data base](https://databank.worldbank.org/reports.aspx?source=World-Development-Indicators) using package [WDI](https://github.com/vincentarelbundock/WDI).
-- Data for Austria taken from the [AGES Dashboard COVID-19.](https://covid19-dashboard.ages.at/).
+- Data for Austria taken from the [AGES Dashboard COVID-19](https://covid19-dashboard.ages.at/).
 
 
 
-**Shapefile Austria:**
+<!-- **Shapefile Austria:** -->
 
 <!-- - Shapefile for Austria taken from [GADM](database (www.gadm.org). -->
 <!-- - Shapefile was modified using [QGIS](https://www.qgis.org/en/site/) to incorporate the most recent district re-classification in which district 'Wien Umgebung' was resolved; [click here for more information](https://en.wikipedia.org/wiki/Wien-Umgebung_District). -->
@@ -521,4 +521,5 @@ About {data-icon="fa-info-circle"}
 
 - Inspiration: Yanchang Zhao, COVID-19 Data Analysis with Tidyverse and Ggplot2 – Worldwide. RDataMining.com, 2020. URL: [http://www.rdatamining.com/docs/Coronavirus-data-analysis-world.pdf](http://www.rdatamining.com/docs/Coronavirus-data-analysis-world.pdf).
 
-- Data preparation using the [Tidyverse](https://www.tidyverse.org/). Visualisation with [flexdashboard](https://rmarkdown.rstudio.com/flexdashboard/index.html).
+- Data preparation using the [Tidyverse](https://www.tidyverse.org/). Visualisation with [flexdashboard](https://rmarkdown.rstudio.com/flexdashboard/index.html), [shiny](https://shiny.rstudio.com/)
+and hosted on [shinyapps](https://www.shinyapps.io/).
