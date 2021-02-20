@@ -338,15 +338,14 @@ df_fin %>%
   filter(date >= (ymd(date_today) - 11)) %>%
   group_by(country) %>%
   arrange(country, desc(date)) %>%
-  mutate(new_confirmed = confirmed - lead(confirmed, 1),
-         new_dead = dead - lead(dead, 1),
-         new_recovered = recovered - lead(recovered, 1),
-         new_remaining = remaining - lead(remaining, 1),) %>%
-  
-  select(country, date, confirmed, new_confirmed, dead, new_dead, recovered, new_recovered,remaining, new_remaining) %>%
+  mutate(
+    new_confirmed = confirmed - lead(confirmed, 1),
+    new_dead = dead - lead(dead, 1),
+    new_recovered = recovered - lead(recovered, 1),
+    new_remaining = remaining - lead(remaining, 1),
+  ) %>%
+  select(country, date, confirmed, new_confirmed, dead, new_dead, recovered, new_recovered, remaining, new_remaining) %>%
   filter(date >= (ymd(date_today) - 10)) %>%
-  
-
   datatable(
     container = sketch,
     rownames = FALSE,
@@ -382,9 +381,9 @@ readr::read_delim("data/AGES/CovidFaelle_Timeline.csv",
 ) %>%
   select(
     state = Bundesland, date = Time, pop = AnzEinwohner,
-    confirmed = AnzahlFaelle, confirmedCum = AnzahlFaelleSum, 
-    #cases7 = AnzahlFaelle7Tage,
-    #incidence = SiebenTageInzidenzFaelle,
+    confirmed = AnzahlFaelle, confirmedCum = AnzahlFaelleSum,
+    # cases7 = AnzahlFaelle7Tage,
+    # incidence = SiebenTageInzidenzFaelle,
     dead = AnzahlTotTaeglich, deadCum = AnzahlTotSum,
     recovered = AnzahlGeheiltTaeglich, recoveredCum = AnzahlGeheiltSum
   ) %>%
@@ -448,7 +447,7 @@ readr::read_delim("data/AGES/CovidFaelle_Timeline_GKZ.csv",
 ) %>%
   select(
     district = Bezirk, date = Time, pop = AnzEinwohner,
-    confirmed = AnzahlFaelle, confirmedCum = AnzahlFaelleSum, 
+    confirmed = AnzahlFaelle, confirmedCum = AnzahlFaelleSum,
     # cases7 = AnzahlFaelle7Tage,
     # incidence = SiebenTageInzidenzFaelle,
     dead = AnzahlTotTaeglich, deadCum = AnzahlTotSum,
@@ -469,12 +468,13 @@ df_district %>%
   filter(date >= (ymd(date_today) - 9)) %>%
   group_by(district) %>%
   arrange(district, desc(date)) %>%
-  mutate(new_confirmed = confirmed - lead(confirmed, 1),
-         new_dead = dead - lead(dead, 1),
-         new_recovered = recovered - lead(recovered, 1),
-         new_remaining = remaining - lead(remaining, 1),) %>%
-  
-  select(district, date, confirmed, new_confirmed, dead, new_dead, recovered, new_recovered,remaining, new_remaining) %>%
+  mutate(
+    new_confirmed = confirmed - lead(confirmed, 1),
+    new_dead = dead - lead(dead, 1),
+    new_recovered = recovered - lead(recovered, 1),
+    new_remaining = remaining - lead(remaining, 1),
+  ) %>%
+  select(district, date, confirmed, new_confirmed, dead, new_dead, recovered, new_recovered, remaining, new_remaining) %>%
   filter(date >= (ymd(date_today) - 8)) %>%
   datatable(
     container = sketch,
